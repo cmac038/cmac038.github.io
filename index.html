@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Major Chord Relationships</title>
+<style>
+
+@import url(style.css);
+ 
+#circle circle {
+fill: none;
+pointer-events: all;
+}
+ 
+.group path {
+fill-opacity: .5;
+}
+ 
+path.chord {
+stroke: #000;
+stroke-width: .25px;
+}
+ 
+#circle:hover path.fade {
+display: none;
+}
+ 
+</style>
+ 
+<h1>Major Chord Relationships on the Circle of Fifths</h1>
+ 
+<aside>Mouseover each note to focus on the respective primary chord (so far only I and IV chords are implemented) for that key and display the notes making up the chord.
+    <p>Mouseover each chord to display source, target, and note interval.</p>
+    <p>Link thickness indicates note interval; the thicker links represent Major Thirds, and thinner links represent Perfect Fifths.</p>
+    <p>Links are directed from the lowest (bass) note of each chord to the supplementary notes, and are also colored based on the bass note.</p>
+</aside>
+ 
+<p>Built with <a href="https://d3js.org/">d3.js</a>.</aside>
+<p align="center">I Chords</p>
+ 
+<script src="https://d3js.org/d3.v2.min.js?2.8.1"></script>
+<script>
+ 
+/**
+  * All code was modified from AndrewRP's example (cited in footer)
+  * Andrew's code was in turn modified from Mike Bostock's Uber Rides by Neighborhood (also cited in footer)
+  * Code that I modified will be delineated as below:
+  * 
+//===========================================================================================================================================================
+// [description of modifications]
+   
+   [code]
+
+//===========================================================================================================================================================
+  *
+  * Deletions will not be marked
+**/
+
+//===========================================================================================================================================================
+// added dictionaries of chords for labeling purposes
+
+var dictRootChords = {
+    "C": "C E G",
+    "G": "G B D",
+    "D": "D F# A",
+    "A": "A Db E",
+    "E": "E Ab B",
+    "B": "B Eb F#",
+    "F#": "F# Bb Db",
+    "Db": "Db F Ab",
+    "Ab": "Ab C Eb",
+    "Eb": "Eb G Bb",
+    "Bb": "Bb D F",
+    "F": "F A C"
+};
+
+var dictSecondInversionChords = {
+    "C": "G C E",
+    "G": "G D B",
+    "D": "D A F#",
+    "A": "A E Db",
+    "E": "E B Ab",
+    "B": "F# B Eb",
+    "F#": "Db F# Bb",
+    "Db": "Ab Db F",
+    "Ab": "Eb Ab C",
+    "Eb": "Bb Eb G",
+    "Bb": "F Bb D",
+    "F": "C F A"
+};
+
+//===========================================================================================================================================================
+
+var width = 720,
+    height = 720,
+    outerRadius = Math.min(width, height) / 2 - 10,
+    innerRadius = outerRadius - 24;
+ 
+var arc = d3.svg.arc()
+    .innerRadius(innerRadius)
+    .outerRadius(outerRadius);
+ 
+var layout = d3.layout.chord()
+    .padding(.04)
+    .sortSubgroups(d3.descending)
+    .sortChords(d3.ascending);
+ 
+var layout2 = d3.layout.chord()
+    .padding(.04)
+    .sortSubgroups(d3.ascending)
+    .sortChords(d3.ascending);
+
+var path = d3.svg.chord()
+    .radius(innerRadius);
+ 
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+  .append("g")
+    .attr("id", "circle")
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+</script>
+<p align="center">IV Chords</p>
+
+<script>
+
+var svg2 = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+  .append("g")
+    .attr("id", "circle")
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+ 
+svg.append("circle")
+    .attr("r", outerRadius);
+ 
+svg2.append("circle")
+    .attr("r", outerRadius);
+
+//===========================================================================================================================================================
+// changed code to read in files locally and drive the program (Mike's version fetched the files and checked to ensure success before running)
+
+// read in notes, associated colors, and flow matrix (both files written by Chris McCulloch)
+d3.csv("notes.csv", function(notes) {
+    d3.json("Ichords.json", function(matrix) {
+
+//===========================================================================================================================================================
+
+	// Compute the chord layout.
+	layout.matrix(matrix);
+ 
+	// Add a group per note.
+	var group = svg.selectAll(".group")
+	    .data(layout.groups)
+	    .enter().append("g")
+	    .attr("class", "group")
+	    .on("mouseover", mouseover);
+ 
+//===========================================================================================================================================================
+// modified mouseover title to display major chord name
+
+	// Add a mouseover title.
+	group.append("title").text(function(d, i) {
+	    return notes[i].name + "maj triad: " + dictRootChords[notes[i].name]; 
+	});
+
+//===========================================================================================================================================================
+
+	// Add the group arc.
+	var groupPath = group.append("path")
+	    .attr("id", function(d, i) { return "group" + i; })
+	    .attr("d", arc)
+	    .style("fill", function(d, i) { return notes[i].color; });
+ 
+	// Add a text label.
+	var groupText = group.append("text")
+	    .attr("x", 80)
+	    .attr("dy", 15);
+ 
+	groupText.append("textPath")
+	    .attr("xlink:href", function(d, i) { return "#group" + i; })
+	    .text(function(d, i) { return notes[i].name; });
+ 
+	// Add the chords.
+	var chord = svg.selectAll(".chord")
+	    .data(layout.chords)
+	    .enter().append("path")
+	    .attr("class", "chord")
+	    .style("fill", function(d) { return notes[d.source.index].color; })
+	    .attr("d", path);
+
+//===========================================================================================================================================================
+// changed chord mouseover to include information about note intervals
+
+	// Add an elaborate mouseover title for each chord.
+	 chord.append("title").text(function(d) {
+	    var output = notes[d.source.index].name
+	    + " → " + notes[d.target.index].name
+	    + "\n";
+	    if (d.source.value == 2) {
+		output += "Major Third";
+	    } else {
+		output += "Perfect Fifth";
+	    }
+	    return output;
+	 });
+
+//===========================================================================================================================================================
+ 
+	function mouseover(d, i) {
+	    chord.classed("fade", function(p) {
+		return p.source.index != i; // && p.target.index != i;
+	    });
+	}
+    });
+});
+
+//===========================================================================================================================================================
+// changed code to read in files locally and drive the program (Mike's version fetched the files and checked to ensure success before running)
+// CHART 2: ADDED FOR HW5
+
+// read in notes, associated colors, and flow matrix (both files written by Chris McCulloch)
+d3.csv("notes.csv", function(notes) {
+    d3.json("IVchords.json", function(matrix) {
+
+//===========================================================================================================================================================
+
+	// Compute the chord layout.
+	layout2.matrix(matrix);
+ 
+	// Add a group per note.
+	var group = svg2.selectAll(".group")
+	    .data(layout2.groups)
+	    .enter().append("g")
+	    .attr("class", "group")
+	    .on("mouseover", mouseover);
+ 
+//===========================================================================================================================================================
+// modified mouseover title to display major chord name
+
+	// Add a mouseover title.
+	group.append("title").text(function(d, i) {
+	    if (i != 0) {
+		return notes[i-1].name + "maj triad 2nd inversion: " + dictSecondInversionChords[notes[i-1].name]; 
+	    } else {
+		return notes[11].name + "maj triad 2nd inversion: " + dictSecondInversionChords[notes[11].name];
+	    }
+	});
+
+//===========================================================================================================================================================
+
+	// Add the group arc.
+	var groupPath = group.append("path")
+	    .attr("id", function(d, i) { return "group" + i; })
+	    .attr("d", arc)
+	    .style("fill", function(d, i) { return notes[i].color; });
+ 
+	// Add a text label.
+	var groupText = group.append("text")
+	    .attr("x", 80)
+	    .attr("dy", 15);
+ 
+	groupText.append("textPath")
+	    .attr("xlink:href", function(d, i) { return "#group" + i; })
+	    .text(function(d, i) { return notes[i].name; });
+ 
+	// Add the chords.
+	var chord = svg2.selectAll(".chord")
+	    .data(layout2.chords)
+	    .enter().append("path")
+	    .attr("class", "chord")
+	    .style("fill", function(d) { return notes[d.source.index].color; })
+	    .attr("d", path);
+
+//===========================================================================================================================================================
+// changed chord mouseover to include information about note intervals
+
+	// Add an elaborate mouseover title for each chord.
+	 chord.append("title").text(function(d) {
+	    var output = notes[d.source.index].name
+	    + " → " + notes[d.target.index].name
+	    + "\n";
+	    if (d.source.value == 2) {
+		output += "Major Third";
+	    } else {
+		output += "Perfect Fifth";
+	    }
+	    return output;
+	 });
+
+//===========================================================================================================================================================
+ 
+	function mouseover(d, i) {
+	    chord.classed("fade", function(p) {
+		return p.source.index != i; // && p.target.index != i;
+	    });
+	}
+    });
+});
+ 
+</script>
+ 
+ 
+<footer>
+<aside>February 7th, 2020</aside>
+<p>Modified from AndrewRP's <a href="http://bl.ocks.org/AndrewRP/7468330">Andrew's Chord Example</a></p>
+<p>AndrewRP's code modified from Mike Bostock's <a href="https://bost.ocks.org/mike/uberdata/">Uber Rides by Neighborhood</a></p>
+<p>Color palette from <a href="http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12">ColorBrewer2.0</a></p>
+</footer>
